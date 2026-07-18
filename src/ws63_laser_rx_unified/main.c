@@ -10,7 +10,7 @@
 #include "soc_osal.h"
 
 #define RX_UNIFIED_FIRMWARE_PACKAGE "ws63-liteos-app_rx_unified_all.fwpkg"
-#define RX_PHONE_INTEGRATION_VERSION "3d4159db"
+#define RX_PHONE_INTEGRATION_VERSION "phone-rx-v4-20260719"
 
 #if defined(CONFIG_LASER_RX_SLE_JOB_ALLOW_PHONE)
 #define RX_PHONE_ADMISSION "1"
