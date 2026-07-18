@@ -22,12 +22,31 @@ existing single-owner rule is unchanged: the first peer that writes the job
 data characteristic owns control; other writers are dropped. Disconnecting the
 owner uses the existing safe-stop callback.
 
+One phone connection is admitted at a time. The phone path intentionally keeps
+the negotiated/default radio parameters.
+The fixed TX and Screen paths retain their existing 512-byte, PHY 4M, and MCS10
+throughput tuning. Notification client-configuration writes are handled as
+SSAP control traffic and cannot claim job ownership.
+
 Build the RX package in the teammate's WSL environment with the normal RX
 workflow. The expected package is:
 
 ```text
 ws63-liteos-app_rx_unified_all.fwpkg
 ```
+
+After flashing the package, the startup line must contain:
+
+```text
+phone_integration=phone-rx-v6-20260719 ... cccd_route=filtered phone_link_tune=0
+```
+
+When the phone connects, RX must log `accept Phone` followed by
+`[job_rx_link_tune] skip Phone`; it must not log a Phone PHY 4M/MCS10 change.
+The notification subscription should appear once as `[RX_CCCD]` and must not
+enter the job parser. A disconnect is labelled with `reason` and `source` so
+the remote/local initiator is explicit; timeout diagnosis still uses the phone
+HiLog together with this RX log.
 
 ## Phone app side
 
