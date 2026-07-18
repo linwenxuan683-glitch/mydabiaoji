@@ -809,15 +809,24 @@ static errcode_t sle_job_route_server_add(void)
     return ERRCODE_SLE_SUCCESS;
 }
 
-static void tune_job_link_after_connect(uint16_t conn_id)
+static void tune_job_data_len_after_connect(uint16_t conn_id, const char *peer)
 {
 #if SLE_JOB_LINK_DATA_LEN_ENABLE
     errcode_t ret = sle_set_data_len(conn_id, SLE_JOB_LINK_DATA_LEN_OCTETS);
-    osal_printk("[job_rx_link_tune] conn=%u data_len=%u ret=0x%x\r\n",
+    osal_printk("[job_rx_link_data_len] peer=%s conn=%u data_len=%u ret=0x%x\r\n",
+                (peer != NULL) ? peer : "unknown",
                 (unsigned int)conn_id,
                 (unsigned int)SLE_JOB_LINK_DATA_LEN_OCTETS,
                 (unsigned int)ret);
+#else
+    unused(conn_id);
+    unused(peer);
 #endif
+}
+
+static void tune_job_link_after_connect(uint16_t conn_id)
+{
+    tune_job_data_len_after_connect(conn_id, "fixed");
 
 #if SLE_JOB_LINK_HIGH_THROUGHPUT_ENABLE
     sle_set_phy_t phy_param = {
@@ -906,7 +915,10 @@ static void sle_connect_state_changed_cbk(uint16_t conn_id, const sle_addr_t *ad
         conn_table_add(conn_id);
         if (is_phone) {
             g_phone_conn_id = conn_id;
-            osal_printk("[job_rx_link_tune] skip Phone conn=%u policy=default-phy\r\n",
+            /* Phone needs the larger data length for 42-byte STATUS responses,
+             * but must not inherit the fixed-board PHY4M/MCS10 tuning. */
+            tune_job_data_len_after_connect(conn_id, "Phone");
+            osal_printk("[job_rx_link_tune] skip Phone conn=%u policy=default-phy-mcs\r\n",
                         (unsigned int)conn_id);
         } else {
             /* Preserve the teammate's fixed TX/Screen throughput tuning. */
@@ -1334,6 +1346,15 @@ errcode_t sle_job_route_server_send_packet(const void *data, uint16_t len)
     param.value_len = len;
     param.value = (uint8_t *)data;
     uint32_t t_notify = (uint32_t)uapi_systick_get_ms();
+    if (!ack_packet) {
+        osal_printk("[RX_NOTIFY_BEGIN] t=%u pkt=0x%02x pkt_seq=%u len=%u handle=%u conn=%u\r\n",
+                    (unsigned int)t_notify,
+                    (unsigned int)pkt_type,
+                    (unsigned int)pkt_seq,
+                    (unsigned int)len,
+                    (unsigned int)g_resp_property_handle,
+                    (unsigned int)g_owner_conn_id);
+    }
     errcode_t ret = ssaps_notify_indicate(g_server_id, g_owner_conn_id, &param);
     uint32_t call_ms = (uint32_t)uapi_systick_get_ms() - t_notify;
     g_rx_diag_notify_count++;
@@ -1346,7 +1367,7 @@ errcode_t sle_job_route_server_send_packet(const void *data, uint16_t len)
     if (call_ms > g_rx_diag_max_notify_ms) {
         g_rx_diag_max_notify_ms = call_ms;
     }
-    if ((ack_packet && ack_status != SLE_JOB_STATUS_OK) ||
+    if (!ack_packet || (ack_packet && ack_status != SLE_JOB_STATUS_OK) ||
         ret != ERRCODE_SLE_SUCCESS || call_ms >= SLE_JOB_NOTIFY_CALL_SLOW_MS) {
         osal_printk("[RX_NOTIFY_TRACE] t=%u pkt=0x%02x pkt_seq=%u ack=%u ack_type=0x%02x "
                     "ack_seq=%u st=%u off=%u credit=%u len=%u ret=0x%x call_ms=%u conn=%u\r\n",
