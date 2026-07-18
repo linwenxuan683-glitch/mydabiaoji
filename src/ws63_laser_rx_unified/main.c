@@ -10,11 +10,22 @@
 #include "soc_osal.h"
 
 #define RX_UNIFIED_FIRMWARE_PACKAGE "ws63-liteos-app_rx_unified_all.fwpkg"
+#define RX_PHONE_INTEGRATION_VERSION "3d4159db"
+
+#if defined(CONFIG_LASER_RX_SLE_JOB_ALLOW_PHONE)
+#define RX_PHONE_ADMISSION "1"
+#else
+#define RX_PHONE_ADMISSION "0"
+#endif
 
 static void laser_rx_unified_entry(void)
 {
-    osal_printk("[FW_ID] board=RX firmware=%s app=ws63_laser_rx_unified role=unified-rx phase=R5D routes=sle_job,wifi,uart\r\n",
-                RX_UNIFIED_FIRMWARE_PACKAGE);
+    osal_printk("[FW_ID] board=RX firmware=%s app=ws63_laser_rx_unified role=unified-rx phase=R5D "
+                "routes=sle_job,wifi,uart phone_integration=%s phone_admission=%s "
+                "ssap_write_rsp=1 notify_desc=client_config phone_adv_restart=0\r\n",
+                RX_UNIFIED_FIRMWARE_PACKAGE,
+                RX_PHONE_INTEGRATION_VERSION,
+                RX_PHONE_ADMISSION);
 
     errcode_t ret = dac8563_init();
     if (ret != ERRCODE_SUCC) {
