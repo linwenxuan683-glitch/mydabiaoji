@@ -738,7 +738,8 @@ static errcode_t sle_job_add_resp_property(void)
     ssaps_desc_info_t desc = {0};
     desc.permissions = 0x01 | 0x02;
     desc.operate_indication = SSAP_OPERATE_INDICATION_BIT_READ | SSAP_OPERATE_INDICATION_BIT_WRITE;
-    desc.type = SSAP_DESCRIPTOR_USER_DESCRIPTION;
+    /* HarmonyOS setPropertyNotification() requires a client configuration descriptor. */
+    desc.type = SSAP_DESCRIPTOR_CLIENT_CONFIGURATION;
     desc.value = ntf_value;
     desc.value_len = sizeof(ntf_value);
     return ssaps_add_descriptor_sync(g_server_id, g_service_handle, g_resp_property_handle, &desc);
