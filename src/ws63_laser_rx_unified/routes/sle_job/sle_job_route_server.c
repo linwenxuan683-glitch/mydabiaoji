@@ -601,10 +601,36 @@ static void sle_uuid_setu2(uint16_t u2, sle_uuid_t *out)
 static void ssaps_write_request_cbk(uint8_t server_id, uint16_t conn_id,
     ssaps_req_write_cb_t *write_cb_para, errcode_t status)
 {
-    unused(server_id);
     uint32_t t_cb = (uint32_t)uapi_systick_get_ms();
-    if (status != ERRCODE_SLE_SUCCESS || write_cb_para == NULL ||
-        write_cb_para->value == NULL || write_cb_para->length == 0) {
+    if (write_cb_para == NULL) {
+        return;
+    }
+
+    /*
+     * SSAP descriptor writes (notably the phone CCCD notification enable)
+     * are request/response writes.  The stack passes them through this same
+     * callback, so acknowledge every request that asks for a response before
+     * dispatching only valid job data to the application queue.  Without this
+     * response the phone waits for the write completion and drops the SLE
+     * link after its supervision/request timeout.
+     */
+    if (write_cb_para->need_rsp) {
+        ssaps_send_rsp_t rsp = {0};
+        rsp.request_id = write_cb_para->request_id;
+        rsp.status = (uint8_t)status;
+        rsp.value_len = 0;
+        rsp.value = NULL;
+        errcode_t rsp_ret = ssaps_send_response(server_id, conn_id, &rsp);
+        if (rsp_ret != ERRCODE_SLE_SUCCESS) {
+            osal_printk("[RX_WRITE_RSP] fail conn=%u req=%u ret=0x%x\r\n",
+                        (unsigned int)conn_id,
+                        (unsigned int)write_cb_para->request_id,
+                        (unsigned int)rsp_ret);
+        }
+    }
+
+    if (status != ERRCODE_SLE_SUCCESS || write_cb_para->value == NULL ||
+        write_cb_para->length == 0) {
         return;
     }
     if (write_cb_para->length > SLE_JOB_PACKET_MAX_SIZE) {
