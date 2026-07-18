@@ -1896,6 +1896,15 @@ void sle_job_manager_on_packet(uint16_t conn_id, const uint8_t *data, uint16_t l
 {
     unused(conn_id);
     sle_job_packet_view_t pkt;
+    /*
+     * SSAP notification subscription writes a two-byte CCCD value through
+     * the same server write callback. It is not a job packet and must not
+     * consume a sequence or generate a protocol NACK.
+     */
+    if (len < SLE_JOB_PACKET_HEADER_LEN) {
+        osal_printk("[JOB_RX] ignore short non-job write len=%u\r\n", (unsigned int)len);
+        return;
+    }
     if (!sle_job_packet_decode(data, len, &pkt)) {
         osal_printk("[JOB_RX] bad packet len=%u\r\n", len);
         send_ack(0, g_expected_seq, SLE_JOB_STATUS_BAD_CRC);
