@@ -805,7 +805,12 @@ static void sle_connect_state_changed_cbk(uint16_t conn_id, const sle_addr_t *ad
     if (conn_state == SLE_ACB_STATE_CONNECTED) {
         bool is_tx = addr_matches_mac(addr, g_tx_mac);
         bool is_screen = addr_matches_mac(addr, g_screen_mac);
-        if (!is_tx && !is_screen) {
+#if defined(CONFIG_LASER_RX_SLE_JOB_ALLOW_PHONE)
+        bool is_phone = !is_tx && !is_screen;
+#else
+        bool is_phone = false;
+#endif
+        if (!is_tx && !is_screen && !is_phone) {
             osal_printk("[job_rx] reject non-whitelist peer conn_id=%u\r\n", (unsigned int)conn_id);
             if (addr != NULL) {
                 (void)sle_disconnect_remote_device(addr);
@@ -820,8 +825,9 @@ static void sle_connect_state_changed_cbk(uint16_t conn_id, const sle_addr_t *ad
             }
             return;
         }
-        osal_printk("[job_rx] accept fixed %s peer conn_id=%u\r\n",
-                    is_tx ? "TX" : "Screen", (unsigned int)conn_id);
+        osal_printk("[job_rx] accept %s peer conn_id=%u\r\n",
+                    is_tx ? "TX" : (is_screen ? "Screen" : "Phone"),
+                    (unsigned int)conn_id);
         conn_table_add(conn_id);
         tune_job_link_after_connect(conn_id);
         if (g_adv_desired && !g_server_stopping) {

@@ -20,6 +20,21 @@ The new mainline is route-based integration:
 Do not force these routes to share a Grbl stream parser or the SLE job
 packet/cache state machine.
 
+## Phone control handoff
+
+The HarmonyOS phone client connects directly to the RX SLE Job server using
+the same SSAP service and packet protocol as the Host/TX path. The fixed-board
+baseline admits only the whitelisted TX and Screen peers. The phone-enabled
+defconfig additionally sets `CONFIG_LASER_RX_SLE_JOB_ALLOW_PHONE=y`, which
+admits a non-fixed phone peer without changing the job executor, motion, laser,
+or TX bridge code.
+
+Control ownership remains single-writer: the first connected peer that writes
+to the job data characteristic becomes `g_owner_conn_id`; writes from other
+connected peers are dropped. Disconnecting the owner invokes the existing safe
+stop callback. Build the phone-enabled RX package from the phone-integration
+branch before testing the phone app.
+
 ## R0/R1 Scope
 
 R1 only creates the route-manager skeleton. It does not start any real route.
