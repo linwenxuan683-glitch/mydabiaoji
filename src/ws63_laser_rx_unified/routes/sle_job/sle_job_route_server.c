@@ -857,7 +857,10 @@ static void sle_connect_state_changed_cbk(uint16_t conn_id, const sle_addr_t *ad
                     (unsigned int)conn_id);
         conn_table_add(conn_id);
         tune_job_link_after_connect(conn_id);
-        if (g_adv_desired && !g_server_stopping) {
+        /* SSAP advertising is stopped by the stack while a client is linked.
+         * Keep the existing fixed-peer behavior, but do not restart it during
+         * the phone's discovery/notification-subscription handshake. */
+        if (g_adv_desired && !g_server_stopping && !is_phone) {
             errcode_t adv_ret = sle_start_announce(SLE_ADV_HANDLE_DEFAULT);
             unused(adv_ret);
         }
